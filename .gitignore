@@ -8,11 +8,11 @@ __pycache__/
 
 # PyPI configuration file
 .pypirc
-=======
 # Python-generated files/ Distribution / packaging
 __pycache__/
 *.py[oc]
 
+# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -181,3 +181,4 @@ cython_debug/
 # OS
 .DS_Store
 Thumbs.db
+
