@@ -1,0 +1,32 @@
+[project]
+name = "xfetcher"
+version = "0.1.0"
+description = "A Python library for downloading and managing machine learning datasets"
+readme = "README.md"
+authors = [
+    { name = "Dr.Saad Laouadi", email = "56449463+dr-saad-la@users.noreply.github.com" }
+]
+requires-python = ">=3.9"
+dependencies = [
+    "requests>=2.32.3",
+    "tqdm>=4.67.1",
+]
+
+classifiers = [
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+
+[project.scripts]
+xloader = "xfetcher:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/xfetcher/__init__.py"
+
