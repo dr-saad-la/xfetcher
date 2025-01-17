@@ -4,13 +4,23 @@ version = "0.1.0"
 description = "A Python library for downloading and managing machine learning datasets"
 readme = "README.md"
 authors = [
-    { name = "Dr.Saad Laouadi", email = "56449463+dr-saad-la@users.noreply.github.com" }
+    { name = "Dr.Saad Laouadi", email = "dr.saad.laouadi@gmail.com" }
 ]
 requires-python = ">=3.9"
 dependencies = [
+    "numpy>=2.0.2",
     "requests>=2.32.3",
     "tqdm>=4.67.1",
 ]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-cov = "^4.1.0"
+black = "^24.1.0"
+isort = "^5.13.2"
+flake8 = "^7.1.1"
+mypy = "^1.14.1"
+pre-commit = "^4.0.1"
 
 classifiers = [
     "Programming Language :: Python :: 3.9",

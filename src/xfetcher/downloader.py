@@ -1,45 +1,57 @@
-# src/xloader/downloader.py
-"""
-    Data downloading functions
-    Author="Dr.saad.laouadi"
-    email = "dr.saad.laouadi@gmail.com"
+"""Data downloading functionality for handling file downloads and ZIP archives.
+
+This module provides utilities for downloading files from URLs and handling
+ZIP archives with progress tracking.
 """
 
+from __future__ import annotations
 
 import os
+import shutil
 import zipfile
 from pathlib import Path
-
-from typing import Union
 from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import TypeVar
+from typing import Union
 
+from tqdm import tqdm
 
 import requests
-from tqdm import tqdm
 
 from .utils import get_filename_from_url
 
+P = TypeVar("P", str, Path)
 
-P = TypeVar('P', str, Path)
 
-class UserCancelled(Exception):
-    """Raised when user cancels an operation."""
-    pass
+class DownloaderError(Exception):
+    """Base exception for downloader-related errors."""
+
+    # pass
+
+
+class DownloadCancelled(DownloaderError):
+    """Raised when a download operation is cancelled."""
+
+    # pass
 
 
 class Downloader:
-    """
-    A class to handle downloading and extracting files, particularly ZIP archives.
+    """Handles downloading and extracting files, particularly ZIP archives.
 
     Attributes:
         save_dir (Path): Directory where downloaded files will be saved
         keep_zip (bool): Whether to keep ZIP files after extraction
+
+    Example:
+        >>> downloader = Downloader(save_dir="downloads")
+        >>> downloader.download_file("https://example.com/file.zip")
     """
 
-    def __init__(self, save_dir: Union[str, Path] = 'downloads', keep_zip: bool = False):
+    def __init__(
+        self, save_dir: Union[str, Path] = "downloads", keep_zip: bool = False
+    ):
         """
         Initialize the Downloader.
 
@@ -61,10 +73,11 @@ class Downloader:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit point - cleanup temporary files."""
         if not self.keep_zip:
-            for zip_file in self.save_dir.glob('*.zip'):
+            for zip_file in self.save_dir.glob("*.zip"):
                 zip_file.unlink(missing_ok=True)
 
-    def _is_safe_path(self, path: str) -> bool:
+    @staticmethod
+    def _is_safe_path(path: str) -> bool:
         """
         Check if a path is safe (no directory traversal or absolute paths).
 
@@ -75,15 +88,16 @@ class Downloader:
             bool: True if path is safe, False otherwise
         """
         return not any(
-            part.startswith('\\') or  # Windows absolute path
-            part.startswith('/') or   # Unix absolute path
-            '..' in part or           # Parent directory traversal
-            ':' in part               # Windows drive letter
+            part.startswith("\\")  # Windows absolute path
+            or part.startswith("/")  # Unix absolute path
+            or ".." in part  # Parent directory traversal
+            or ":" in part  # Windows drive letter
             for part in Path(path).parts
         )
 
-    def download_file(self, url: str, filename: Optional[str] = None,
-                      chunk_size: int = 8192) -> Path:
+    def download_file(
+        self, url: str, filename: Optional[str] = None, chunk_size: int = 8192
+    ) -> Path:
         """
         Download a file from the given URL with progress bar.
 
@@ -114,16 +128,23 @@ class Downloader:
             response = requests.get(url, stream=True, timeout=(3.05, 27))
             response.raise_for_status()
 
-            total_size = int(response.headers.get('content-length', 0))
+            total_size = int(response.headers.get("content-length", 0))
 
             # Check file size for large downloads
             if total_size > 1024 * 1024 * 1024:  # 1GB
-                response = input(f"File size is {self._humanize_size(total_size)}. Continue? (y/n): ")
-                if response.lower() != 'y':
-                    raise UserCancelled("Download cancelled by user")
+                response = input(
+                    f"File size is {self._humanize_size(total_size)}. Continue? (y/n): "
+                )
+                if response.lower() != "y":
+                    raise DownloadCancelled("Download cancelled by user")
 
-            with open(file_path, 'wb') as f:
-                with tqdm(total=total_size, unit='iB', unit_scale=True, desc=f"Downloading {filename}") as pbar:
+            with open(file_path, "wb") as f:
+                with tqdm(
+                    total=total_size,
+                    unit="iB",
+                    unit_scale=True,
+                    desc=f"Downloading {filename}",
+                ) as pbar:
                     for data in response.iter_content(chunk_size):
                         size = f.write(data)
                         pbar.update(size)
@@ -147,9 +168,11 @@ class Downloader:
 
         return file_path
 
-
-    def extract_zip(self, zip_path: Union[str, Path],
-                    extract_path: Optional[Union[str, Path]] = None) -> Path:
+    def extract_zip(
+        self,
+        zip_path: Union[str, Path],
+        extract_path: Optional[Union[str, Path]] = None,
+    ) -> Path:
         """
         Extract a ZIP file, including nested ZIP files.
 
@@ -175,9 +198,11 @@ class Downloader:
 
         extract_path.mkdir(parents=True, exist_ok=True)
 
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
             # Check for dangerous paths
-            unsafe_paths = [name for name in zip_ref.namelist() if not self._is_safe_path(name)]
+            unsafe_paths = [
+                name for name in zip_ref.namelist() if not self._is_safe_path(name)
+            ]
             if unsafe_paths:
                 raise ValueError(f"Potentially dangerous paths in zip: {unsafe_paths}")
 
@@ -189,7 +214,7 @@ class Downloader:
                     pbar.update(1)
 
                     # Handle nested ZIP files
-                    if member.lower().endswith('.zip'):
+                    if member.lower().endswith(".zip"):
                         nested_path = extract_path / member
                         nested_extract_path = extract_path / Path(member).stem
                         try:
@@ -202,7 +227,6 @@ class Downloader:
             zip_path.unlink(missing_ok=True)
 
         return extract_path
-
 
     def _format_extracted_files(self, base_dir: Path, files: List[Path]) -> List[str]:
         """
@@ -221,14 +245,16 @@ class Downloader:
                 try:
                     relative_path = file_path.relative_to(base_dir)
                     size = file_path.stat().st_size
-                    formatted_files.append(f"{relative_path} ({self._humanize_size(size)})")
+                    formatted_files.append(
+                        f"{relative_path} ({self._humanize_size(size)})"
+                    )
                 except (OSError, ValueError):
                     continue  # Skip files that can't be accessed or have invalid paths
         return formatted_files
 
-    def download_and_extract(self, url: str,
-                             extract_path: Optional[Union[str, Path]] = None
-                             ) -> Tuple[Path, List[Path]]:
+    def download_and_extract(
+        self, url: str, extract_path: Optional[Union[str, Path]] = None
+    ) -> Tuple[str, List[str]]:
         """
         Download a ZIP file and extract its contents.
 
@@ -247,7 +273,7 @@ class Downloader:
             extract_dir = self.extract_zip(zip_path, extract_path)
 
             # Get list of extracted files
-            extracted_files = list(extract_dir.rglob('*'))
+            extracted_files = list(extract_dir.rglob("*"))
 
             # Format the file list
             formatted_files = self._format_extracted_files(extract_dir, extracted_files)
@@ -261,10 +287,9 @@ class Downloader:
 
         except Exception as e:
             # Cleanup any partially downloaded/extracted files
-            if 'zip_path' in locals():
+            if "zip_path" in locals():
                 Path(zip_path).unlink(missing_ok=True)
-            if 'extract_dir' in locals():
-                import shutil
+            if "extract_dir" in locals():
                 shutil.rmtree(extract_dir, ignore_errors=True)
             raise Exception(f"Failed to download and extract: {str(e)}") from e
 
@@ -283,7 +308,7 @@ class Downloader:
 
         print(f"\nContents of {dir_to_list}:")
         try:
-            for item in dir_to_list.rglob('*'):
+            for item in dir_to_list.rglob("*"):
                 if item.is_file():
                     relative_path = item.relative_to(dir_to_list)
                     size = item.stat().st_size
@@ -294,7 +319,7 @@ class Downloader:
     @staticmethod
     def _humanize_size(size: int) -> str:
         """
-        Convert size in bytes to human readable format.
+        Convert size in bytes to human-readable format.
 
         Args:
             size (int): Size in bytes
@@ -302,24 +327,9 @@ class Downloader:
         Returns:
             str: Human readable size string
         """
-        for unit in ['B', 'KB', 'MB', 'GB']:
-            if size < 1024:
+        current_size = float(size)
+        for unit in ["B", "KB", "MB", "GB"]:
+            if current_size < 1024:
                 return f"{size:.1f}{unit}"
-            size /= 1024
+            current_size /= 1024
         return f"{size:.1f}TB"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
